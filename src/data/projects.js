@@ -1,27 +1,45 @@
 export const apps = [
-  // Add your apps here. Example:
-  // {
-  //   id: 1,
-  //   title: "My App",
-  //   description: "What it does and why it matters.",
-  //   tags: ["React Native", "Firebase"],
-  //   live: "https://...",
-  //   github: "https://github.com/...",
-  //   icon: "📱",
-  //   badge: "Mobile App",
-  // }
+  {
+    id: 1,
+    title: "LinkHabit",
+    description: "A progressive web app that turns your social media saves into a daily reading habit. Installable on any device with offline support.",
+    tags: ["HTML", "JavaScript", "PWA", "Service Worker"],
+    live: "https://link-habit.vercel.app",
+    github: "https://github.com/Caala21/LinkHabit",
+    icon: "📖",
+    badge: "PWA",
+  },
 ];
 
 export const websites = [
-  // Add your websites here. Example:
-  // {
-  //   id: 1,
-  //   title: "Client Site",
-  //   description: "A fast, responsive site built for a client.",
-  //   tags: ["React", "Tailwind", "Netlify"],
-  //   live: "https://...",
-  //   github: "https://github.com/...",
-  //   icon: "🌐",
-  //   badge: "Website",
-  // }
+  {
+    id: 1,
+    title: "Wachaga Mungai Advocates",
+    description: "Professional website for Wachaga Mungai Advocates & Partners, a Kenyan law firm.",
+    tags: ["Next.js", "TypeScript", "Tailwind CSS"],
+    live: "https://wachaga-mungai.vercel.app",
+    github: "https://github.com/Caala21/wachaga-mungai",
+    icon: "⚖️",
+    badge: "Law Firm",
+  },
+  {
+    id: 2,
+    title: "MD Mwangi Law Firm",
+    description: "React-based website for a Nairobi law firm showcasing legal services and attorney profiles.",
+    tags: ["React", "JavaScript", "CSS"],
+    live: "",
+    github: "https://github.com/Caala21/mdmwangi-law-firm",
+    icon: "🏛️",
+    badge: "Law Firm",
+  },
+  {
+    id: 3,
+    title: "Adams & Sons Roofing",
+    description: "Marketing website for a Houston, TX roofing contractor with services, testimonials and a contact form.",
+    tags: ["Next.js", "TypeScript", "Tailwind CSS"],
+    live: "https://adams-sons-roofing-one.vercel.app",
+    github: "https://github.com/Caala21/adams-sons-roofing",
+    icon: "🏠",
+    badge: "Business Site",
+  },
 ];
