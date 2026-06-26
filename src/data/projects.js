@@ -9,6 +9,16 @@ export const apps = [
     icon: "📖",
     badge: "PWA",
   },
+  {
+  id: 2,
+  title: "Hole In The Wall - Restaurant Order App",
+  description: "A full-featured restaurant PWA for a New York eatery. Customers browse the menu, place direct orders, earn loyalty points, and track order history — all without third-party delivery apps.",
+  tags: ["PWA", "JavaScript", "Loyalty System", "Mobile First", "Vercel"],
+  live: "https://hitw-order.vercel.app/",
+  github: "https://github.com/Caala21/hitw-order",
+  icon: "🍽️",
+  badge: "PWA",
+},
 ];
 
 export const websites = [
@@ -42,4 +52,4 @@ export const websites = [
     icon: "🏠",
     badge: "Business Site",
   },
-];
+]; 
