@@ -1,0 +1,187 @@
+{
+  "name": "Invoice Reminder Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24 }]
+        }
+      },
+      "id": "b1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Daily Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_INVOICES_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
+        "options": {
+          "headerRow": 1,
+          "rangeDefinition": "specifyRangeA1"
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Read Invoices Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst results = [];\n\nfor (const item of $input.all()) {\n  const row = item.json;\n  \n  // Skip paid or cancelled invoices\n  if (!row.DueDate || row.Status === 'Paid' || row.Status === 'Cancelled') continue;\n  \n  const dueDate = new Date(row.DueDate);\n  const diffTime = dueDate - today;\n  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n  \n  let reminderType = null;\n  \n  if (diffDays === 7) reminderType = '7-day';\n  else if (diffDays === 3) reminderType = '3-day';\n  else if (diffDays === 1) reminderType = '1-day';\n  else if (diffDays === 0) reminderType = 'due-today';\n  else if (diffDays === -1) reminderType = '1-day-overdue';\n  else if (diffDays === -7) reminderType = '7-day-overdue';\n  else if (diffDays === -14) reminderType = '14-day-overdue';\n  \n  if (reminderType) {\n    results.push({\n      json: {\n        ...row,\n        daysUntilDue: diffDays,\n        reminderType,\n        isOverdue: diffDays < 0,\n        formattedDueDate: dueDate.toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "b1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Calculate Due Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isOverdue }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Is Overdue?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.ClientEmail }}",
+        "subject": "=⚠️ OVERDUE: Invoice #{{ $json.InvoiceNumber }} – KES {{ $json.Amount }}",
+        "message": "=Dear {{ $json.ClientName }},\n\nThis is an urgent reminder that Invoice #{{ $json.InvoiceNumber }} is now {{ Math.abs($json.daysUntilDue) }} day(s) OVERDUE.\n\n**Invoice Details:**\n━━━━━━━━━━━━━━━━━━━━\n📋 Invoice #: {{ $json.InvoiceNumber }}\n💰 Amount Due: KES {{ $json.Amount }}\n📅 Due Date: {{ $json.formattedDueDate }}\n🔴 Status: OVERDUE by {{ Math.abs($json.daysUntilDue) }} day(s)\n━━━━━━━━━━━━━━━━━━━━\n\nPlease settle this payment immediately to avoid further action.\n\n**Payment Methods:**\n- M-Pesa: [YOUR_MPESA_NUMBER]\n- Bank Transfer: [YOUR_BANK_DETAILS]\n- PayPal: [YOUR_PAYPAL]\n\nIf you have already made payment, kindly disregard this notice and send your receipt to cliff@example.com.\n\nFor queries, contact us immediately.\n\nRegards,\nCliff Njogu\nDevOps & Automation Specialist\n📞 +254 XXX XXX XXX",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Send Overdue Reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.ClientEmail }}",
+        "subject": "=📄 Reminder: Invoice #{{ $json.InvoiceNumber }} due {{ $json.reminderType === 'due-today' ? 'TODAY' : 'in ' + $json.daysUntilDue + ' day(s)' }}",
+        "message": "=Dear {{ $json.ClientName }},\n\n{{ $json.reminderType === 'due-today' ? '🔔 Your invoice is due TODAY!' : '🔔 Friendly reminder about your upcoming invoice.' }}\n\n**Invoice Details:**\n━━━━━━━━━━━━━━━━━━━━\n📋 Invoice #: {{ $json.InvoiceNumber }}\n💼 Project: {{ $json.ProjectName || 'Services Rendered' }}\n💰 Amount: KES {{ $json.Amount }}\n📅 Due Date: {{ $json.formattedDueDate }}\n⏳ Due In: {{ $json.daysUntilDue }} day(s)\n━━━━━━━━━━━━━━━━━━━━\n\n**Payment Methods:**\n- M-Pesa: [YOUR_MPESA_NUMBER]\n- Bank Transfer: [YOUR_BANK_DETAILS]\n\nThank you for your business, {{ $json.ClientName }}! 🙏\n\nRegards,\nCliff Njogu\n📧 cliff@example.com | 🌍 Nairobi, Kenya",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Send Upcoming Reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_INVOICES_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "LastReminderSent": "={{ $now.toISO() }}",
+            "ReminderCount": "={{ parseInt($json.ReminderCount || 0) + 1 }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "b1b2c3d4-0007-0007-0007-000000000007",
+      "name": "Update Reminder Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1360, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Schedule Trigger": {
+      "main": [
+        [{ "node": "Read Invoices Sheet", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Invoices Sheet": {
+      "main": [
+        [{ "node": "Calculate Due Dates", "type": "main", "index": 0 }]
+      ]
+    },
+    "Calculate Due Dates": {
+      "main": [
+        [{ "node": "Is Overdue?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Overdue?": {
+      "main": [
+        [{ "node": "Send Overdue Reminder", "type": "main", "index": 0 }],
+        [{ "node": "Send Upcoming Reminder", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Overdue Reminder": {
+      "main": [
+        [{ "node": "Update Reminder Log", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Upcoming Reminder": {
+      "main": [
+        [{ "node": "Update Reminder Log", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "cliff-invoice-reminder-v1",
+  "tags": [
+    { "id": "tag1", "name": "invoicing" },
+    { "id": "tag2", "name": "gmail" },
+    { "id": "tag3", "name": "finance-automation" }
+  ]
+}

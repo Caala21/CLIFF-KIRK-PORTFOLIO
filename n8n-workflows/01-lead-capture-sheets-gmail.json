@@ -1,0 +1,181 @@
+{
+  "name": "Lead Capture → Google Sheets + Gmail",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Webhook – Lead Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "lead-capture-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.email }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.name }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Validate Lead Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now.toISO() }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Phone": "={{ $json.phone || 'N/A' }}",
+            "Company": "={{ $json.company || 'N/A' }}",
+            "Message": "={{ $json.message || '' }}",
+            "Source": "={{ $json.source || 'Website' }}",
+            "Status": "New"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [700, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Thanks for reaching out, {{ $json.name }}! 🎉",
+        "message": "=Hi {{ $json.name }},\n\nThank you for getting in touch! We've received your enquiry and will get back to you within 24 hours.\n\n**Here's what you submitted:**\n- Name: {{ $json.name }}\n- Email: {{ $json.email }}\n- Message: {{ $json.message || 'No message provided' }}\n\nIn the meantime, feel free to browse our services or connect with us on LinkedIn.\n\nWarm regards,\nCliff Njogu\nDevOps & Automation Specialist\n📧 cliff@example.com\n🌍 Nairobi, Kenya",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [700, 360],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_ADMIN_EMAIL@gmail.com",
+        "subject": "🔔 New Lead: {{ $('Webhook – Lead Form').item.json.name }}",
+        "message": "=A new lead has been captured!\n\n**Lead Details:**\n- Name: {{ $('Webhook – Lead Form').item.json.name }}\n- Email: {{ $('Webhook – Lead Form').item.json.email }}\n- Phone: {{ $('Webhook – Lead Form').item.json.phone || 'Not provided' }}\n- Company: {{ $('Webhook – Lead Form').item.json.company || 'Not provided' }}\n- Message: {{ $('Webhook – Lead Form').item.json.message || 'No message' }}\n- Source: {{ $('Webhook – Lead Form').item.json.source || 'Website' }}\n- Time: {{ $now.toISO() }}\n\nView all leads in Google Sheets: https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [700, 520],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"message\": \"Lead captured successfully. Check your email!\" }"
+      },
+      "id": "a1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"error\", \"message\": \"Name and email are required fields.\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000007",
+      "name": "Validation Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 680]
+    }
+  ],
+  "connections": {
+    "Webhook – Lead Form": {
+      "main": [
+        [{ "node": "Validate Lead Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Lead Data": {
+      "main": [
+        [
+          { "node": "Append to Google Sheets", "type": "main", "index": 0 },
+          { "node": "Send Confirmation Email", "type": "main", "index": 0 },
+          { "node": "Notify Admin", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Validation Error Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Append to Google Sheets": {
+      "main": [
+        [{ "node": "Success Response", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cliff-lead-capture-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "cliff-njogu-automation"
+  },
+  "tags": [
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "tag1", "name": "lead-generation" },
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "tag2", "name": "google-sheets" },
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "tag3", "name": "gmail" }
+  ]
+}

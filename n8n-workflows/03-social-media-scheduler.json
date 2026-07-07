@@ -1,0 +1,256 @@
+{
+  "name": "Social Media Post Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "id": "c1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Every 30 Min Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_CONTENT_CALENDAR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Calendar",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "c1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Read Content Calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst window = 30 * 60 * 1000; // 30-minute window\nconst scheduled = [];\n\nfor (const item of $input.all()) {\n  const row = item.json;\n  if (row.Status !== 'Scheduled') continue;\n  \n  const postTime = new Date(row.ScheduledDateTime);\n  const diff = postTime - now;\n  \n  if (diff >= 0 && diff <= window) {\n    scheduled.push({\n      json: {\n        ...row,\n        platforms: row.Platforms ? row.Platforms.split(',').map(p => p.trim()) : ['LinkedIn'],\n        hashtagList: row.Hashtags ? row.Hashtags.split(',').map(h => h.trim()) : [],\n        fullContent: `${row.Content}\\n\\n${row.Hashtags || ''}`\n      }\n    });\n  }\n}\n\nif (scheduled.length === 0) {\n  return [{ json: { noPosts: true, message: 'No posts due in next 30 minutes' } }];\n}\n\nreturn scheduled;"
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Filter Posts Due Now",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.noPosts }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "c1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Any Posts to Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts = $input.all();\nconst results = [];\n\nfor (const post of posts) {\n  const platforms = post.json.platforms || [];\n  \n  for (const platform of platforms) {\n    results.push({\n      json: {\n        ...post.json,\n        targetPlatform: platform.toLowerCase().trim()\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "c1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Split by Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.targetPlatform }}",
+              "operation": "equals",
+              "value2": "twitter"
+            }
+          ]
+        }
+      },
+      "id": "c1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Route: Twitter/X",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.fullContent.substring(0, 280) }}",
+        "additionalFields": {}
+      },
+      "id": "c1b2c3d4-0007-0007-0007-000000000007",
+      "name": "Post to Twitter/X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [1560, 120],
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "CREDENTIAL_ID_TWITTER",
+          "name": "Twitter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer YOUR_LINKEDIN_ACCESS_TOKEN" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({ author: 'urn:li:person:YOUR_LINKEDIN_ID', lifecycleState: 'PUBLISHED', specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { text: $json.fullContent }, shareMediaCategory: 'NONE' } }, visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' } }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1b2c3d4-0008-0008-0008-000000000008",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_CONTENT_CALENDAR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Calendar",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Posted",
+            "PostedAt": "={{ $now.toISO() }}",
+            "PostedTo": "={{ $json.targetPlatform }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "c1b2c3d4-0009-0009-0009-000000000009",
+      "name": "Mark as Posted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1780, 280],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_ADMIN_EMAIL@gmail.com",
+        "subject": "✅ Social Post Published: {{ $json.PostTitle || 'Untitled' }}",
+        "message": "=Your scheduled post has been published!\n\n📱 Platform: {{ $json.targetPlatform }}\n📝 Content Preview: {{ $json.Content.substring(0, 100) }}...\n⏰ Published At: {{ $now.toISO() }}\n\nView your content calendar: https://docs.google.com/spreadsheets/d/YOUR_CONTENT_CALENDAR_SHEET_ID",
+        "options": {}
+      },
+      "id": "c1b2c3d4-0010-0010-0010-000000000010",
+      "name": "Email Confirmation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1780, 460],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 Min Check": {
+      "main": [
+        [{ "node": "Read Content Calendar", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Content Calendar": {
+      "main": [
+        [{ "node": "Filter Posts Due Now", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filter Posts Due Now": {
+      "main": [
+        [{ "node": "Any Posts to Send?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Any Posts to Send?": {
+      "main": [
+        [],
+        [{ "node": "Split by Platform", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split by Platform": {
+      "main": [
+        [{ "node": "Route: Twitter/X", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route: Twitter/X": {
+      "main": [
+        [{ "node": "Post to Twitter/X", "type": "main", "index": 0 }],
+        [{ "node": "Post to LinkedIn", "type": "main", "index": 0 }]
+      ]
+    },
+    "Post to Twitter/X": {
+      "main": [
+        [{ "node": "Mark as Posted", "type": "main", "index": 0 }]
+      ]
+    },
+    "Post to LinkedIn": {
+      "main": [
+        [{ "node": "Mark as Posted", "type": "main", "index": 0 }]
+      ]
+    },
+    "Mark as Posted": {
+      "main": [
+        [{ "node": "Email Confirmation", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "cliff-social-scheduler-v1",
+  "tags": [
+    { "id": "tag1", "name": "social-media" },
+    { "id": "tag2", "name": "content-scheduling" },
+    { "id": "tag3", "name": "twitter" },
+    { "id": "tag4", "name": "linkedin" }
+  ]
+}

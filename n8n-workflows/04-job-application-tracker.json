@@ -1,0 +1,200 @@
+{
+  "name": "Job Application Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "job-application",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Application Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "job-application-webhook"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * MON" }]
+        }
+      },
+      "id": "d1b2c3d4-0001b-0001-0001-000000000001",
+      "name": "Weekly Monday 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 560]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_JOB_TRACKER_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Applications",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ApplicationID": "={{ 'APP-' + $now.format('YYYYMMDD') + '-' + Math.floor(Math.random() * 9000 + 1000) }}",
+            "DateApplied": "={{ $now.toISO() }}",
+            "Company": "={{ $json.company }}",
+            "JobTitle": "={{ $json.jobTitle }}",
+            "JobURL": "={{ $json.jobUrl || 'N/A' }}",
+            "ContactName": "={{ $json.contactName || 'Unknown' }}",
+            "ContactEmail": "={{ $json.contactEmail || 'N/A' }}",
+            "Salary": "={{ $json.salary || 'Not Disclosed' }}",
+            "Location": "={{ $json.location || 'Remote/Nairobi' }}",
+            "Status": "Applied",
+            "Notes": "={{ $json.notes || '' }}",
+            "FollowUpDate": "={{ $now.plus(7, 'days').toISO() }}",
+            "Source": "={{ $json.source || 'Direct' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "d1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Log Application to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [500, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@gmail.com",
+        "subject": "=✅ Application Logged: {{ $json.jobTitle }} @ {{ $json.company }}",
+        "message": "=Your job application has been logged successfully!\n\n**Application Summary:**\n━━━━━━━━━━━━━━━━━━━━\n🏢 Company: {{ $json.company }}\n💼 Role: {{ $json.jobTitle }}\n📍 Location: {{ $json.location || 'Remote/Nairobi' }}\n💰 Salary: {{ $json.salary || 'Not Disclosed' }}\n🔗 Job URL: {{ $json.jobUrl || 'N/A' }}\n📅 Applied: {{ $now.format('DD MMM YYYY') }}\n🔔 Follow-up Due: {{ $now.plus(7, 'days').format('DD MMM YYYY') }}\n━━━━━━━━━━━━━━━━━━━━\n\n**Next Steps:**\n1. Send a LinkedIn connection request to the hiring manager\n2. Follow up via email in 7 days if no response\n3. Research the company culture & recent news\n4. Prepare role-specific portfolio examples\n\nView your full tracker: https://docs.google.com/spreadsheets/d/YOUR_JOB_TRACKER_SHEET_ID\n\nGood luck, Cliff! 🚀",
+        "options": {}
+      },
+      "id": "d1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Confirm Application Logged",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [740, 400],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"message\": \"Application logged! Check your email for the summary.\" }"
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_JOB_TRACKER_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Applications",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "d1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Read All Applications",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [500, 560],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst followUps = [];\nconst stats = { total: 0, applied: 0, interviewing: 0, offered: 0, rejected: 0, ghosted: 0 };\n\nfor (const item of $input.all()) {\n  const row = item.json;\n  stats.total++;\n  \n  const status = (row.Status || '').toLowerCase();\n  if (stats[status] !== undefined) stats[status]++;\n  \n  if (row.FollowUpDate && (row.Status === 'Applied' || row.Status === 'Interviewing')) {\n    const followUpDate = new Date(row.FollowUpDate);\n    const diff = Math.ceil((followUpDate - today) / (1000 * 60 * 60 * 24));\n    \n    if (diff <= 0) {\n      followUps.push({\n        company: row.Company,\n        role: row.JobTitle,\n        appliedDate: row.DateApplied,\n        contactEmail: row.ContactEmail,\n        daysOverdue: Math.abs(diff),\n        applicationId: row.ApplicationID\n      });\n    }\n  }\n}\n\nreturn [{ json: { stats, followUps, reportDate: today.toISOString() } }];"
+      },
+      "id": "d1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Generate Weekly Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 560]
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@gmail.com",
+        "subject": "=📊 Weekly Job Search Report – {{ $now.format('DD MMM YYYY') }}",
+        "message": "=Good morning, Cliff! 👋 Here's your weekly job search summary:\n\n**📈 Application Statistics:**\n━━━━━━━━━━━━━━━━━━━━\n📋 Total Applications: {{ $json.stats.total }}\n✉️  Applied (Awaiting): {{ $json.stats.applied }}\n🤝 Interviewing: {{ $json.stats.interviewing }}\n🎉 Offers Received: {{ $json.stats.offered }}\n❌ Rejected: {{ $json.stats.rejected }}\n👻 Ghosted: {{ $json.stats.ghosted }}\n━━━━━━━━━━━━━━━━━━━━\n\n**🔔 Overdue Follow-Ups ({{ $json.followUps.length }}):**\n{{ $json.followUps.length === 0 ? '✅ No overdue follow-ups! Great job staying on top of things.' : $json.followUps.map(f => `• ${f.company} – ${f.role} (${f.daysOverdue} days overdue)`).join('\\n') }}\n\n**💡 This Week's Action Items:**\n1. Follow up on all overdue applications above\n2. Apply to 5 new positions\n3. Update your LinkedIn profile with recent projects\n4. Network with 3 new contacts in your field\n\n📊 Full tracker: https://docs.google.com/spreadsheets/d/YOUR_JOB_TRACKER_SHEET_ID\n\nYou've got this, Cliff! 💪 Keep pushing forward.\n\nYour Automation Assistant 🤖",
+        "options": {}
+      },
+      "id": "d1b2c3d4-0007-0007-0007-000000000007",
+      "name": "Send Weekly Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [980, 560],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIAL_ID_GMAIL",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Application Webhook": {
+      "main": [
+        [{ "node": "Log Application to Sheets", "type": "main", "index": 0 }]
+      ]
+    },
+    "Log Application to Sheets": {
+      "main": [
+        [
+          { "node": "Confirm Application Logged", "type": "main", "index": 0 },
+          { "node": "Webhook Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Weekly Monday 9AM": {
+      "main": [
+        [{ "node": "Read All Applications", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read All Applications": {
+      "main": [
+        [{ "node": "Generate Weekly Stats", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Weekly Stats": {
+      "main": [
+        [{ "node": "Send Weekly Report", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "cliff-job-tracker-v1",
+  "tags": [
+    { "id": "tag1", "name": "job-search" },
+    { "id": "tag2", "name": "productivity" },
+    { "id": "tag3", "name": "weekly-report" }
+  ]
+}
