@@ -102,15 +102,17 @@ export default function Hero() {
           Building for the <Typewriter />
         </motion.h1>
 
-        <motion.p
-          variants={item}
-          style={{
-            fontSize: "1.1rem", color: "#8892A4",
-            maxWidth: "560px", marginBottom: "2rem", lineHeight: 1.7,
-          }}
-        >
-          DevOps Engineer · Front-End Developer · Legal &amp; Billing Professional.
-          I build fast, reliable apps and websites, bringing operational precision to every line of code.
+         <motion.p
+  variants={item}
+  style={{
+    fontSize: "1.1rem", color: "#8892A4",
+    maxWidth: "580px", marginBottom: "2rem", lineHeight: 1.7,
+  }}
+>
+  Legal Professional · DevOps Engineer · Front-End Developer.
+  Based in Nairobi, serving international clients across web development,
+  legal tech, and automation — with 9+ years of professional experience
+  and 22+ certifications backing every project.
         </motion.p>
 
         {/* Pills */}

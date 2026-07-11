@@ -13,11 +13,11 @@ export default function Footer() {
       </p>
       <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
         {[
-          { label: "GitHub",      href: "https://github.com/Caala21" },
-          { label: "LinkedIn",    href: "https://www.linkedin.com/in/cliff-njogu-032149113/" },
-          { label: "Email",       href: "mailto:ktugi2509@gmail.com" },
-          { label: "WhatsApp 1",  href: "https://wa.me/254706509334" },
-          { label: "WhatsApp 2",  href: "https://wa.me/254111896643" },
+          { label: "GitHub",     href: "https://github.com/Caala21" },
+          { label: "LinkedIn",   href: "https://www.linkedin.com/in/cliff-njogu-1873b739a/" },
+          { label: "Email",      href: "mailto:ktugi2509@gmail.com" },
+          { label: "WhatsApp 1", href: "https://wa.me/254706509334" },
+          { label: "WhatsApp 2", href: "https://wa.me/254111896643" },
         ].map((l) => (
           <motion.a
             key={l.label}
